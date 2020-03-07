@@ -2,6 +2,12 @@
 
 import argparse, requests, json, random, string
 
+banner =\
+"""VHbuster running.
+Host names: {}
+Ip addresses: {}
+"""
+
 def setup():
 	# Setup
 	global ips, domains
@@ -56,19 +62,12 @@ class bruteforcer:
 				valid.append({ip:host})
 				print(ip + " ----> " + host)
 
+
 if __name__ == "__main__":
 	setup()
-
+	print(banner.format(domains,ips))
 	bf =[]
 	for ip in ips:
 		bf.append(bruteforcer(ip,domains))
 	for i in bf:
 		i.bruteforce()
-
-
-
-	
-
-
-
-
