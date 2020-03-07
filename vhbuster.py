@@ -4,8 +4,9 @@ import argparse, requests, json, random, string, re
 
 banner =\
 """VHbuster running.
-Host names: {}
-Ip addresses: {}
+Host names:	{}
+Ip addresses:	{}
+Outfile:	{}
 """
 
 def setup():
@@ -43,9 +44,12 @@ def setup():
 		print("Error:	Ip address required.")
 		exit()
 	for ip in ips:
-		if not re.match('^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',ip):
+		if not re.match('^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',ip): #Matches valid ipv4 addresses.
 			print(f"Error:	{ip} is not a valid ip address.")
 			exit()
+
+	if args.o[-1] == "/":
+		args.o+="vhbuster.out"
 
 
 
@@ -83,7 +87,7 @@ class bruteforcer:
 
 if __name__ == "__main__":
 	setup()
-	print(banner.format(domains,ips))
+	print(banner.format(domains,ips,args.o))
 	bf =[]
 	for ip in ips:
 		bf.append(bruteforcer(ip,domains))
@@ -92,14 +96,8 @@ if __name__ == "__main__":
 
 	if args.o:
 		try:
-			if args.o[-1] == "/":
-				with open(args.o+"vhbuster.out",'rw') as f:
-					f.write(valid)
-					f.close()
-
-			else:
-				with open(args.o,'rw') as f:
-					f.write(valid)
-					f.close()
+			with open(args.o,'w') as f:
+				f.write(str(valid))
+				f.close()
 		except:
 			print("Error:	Could not write to outfile.")
