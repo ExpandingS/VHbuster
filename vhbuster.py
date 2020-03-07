@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse, requests, json, random, string
+import argparse, requests, json, random, string, re
 
 banner =\
 """VHbuster running.
@@ -10,7 +10,7 @@ Ip addresses: {}
 
 def setup():
 	# Setup
-	global ips, domains
+	global ips, domains, args
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
 	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
@@ -18,6 +18,8 @@ def setup():
 	parser.add_argument("domains",help="Location of file containing potential virtual hosts.")
 	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=10,type=int)
 	parser.add_argument("-l",help="Limit requests to one ip per minute.",metavar="5",type=int)
+	parser.add_argument("-o",help="Outfile",metavar="/path/to/outfile")
+	parser.add_argument("--timeout",help="Time in seconds to wait for a response.",default=5,type=int)
 	args = parser.parse_args()
 
 	ips=[] # Set up a list of ip addresses and virtual hosts.
@@ -35,7 +37,16 @@ def setup():
 		with open(args.domains,"r") as f:
 			domains = [line.rstrip() for line in f]
 	except:
-		print("Error: Could not open domain file.")
+		print("Error: Could not open domain file.")\
+
+	if ips == []:
+		print("Error:	Ip address required.")
+		exit()
+	for ip in ips:
+		if not re.match('^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',ip):
+			print(f"Error:	{ip} is not a valid ip address.")
+			exit()
+
 
 
 def randomString(Slen):
@@ -49,18 +60,25 @@ class bruteforcer:
 		self.vh=vh
 
 	def bruteforce(self):
+		global valid
 		valid=[]
+
+
 		#Find how server responds to non-valid requests.
-		r= requests.get("http://"+self.ip,headers={"Host":randomString(10)+".com"})
-		normal = r
+		try:
+			r= requests.get("http://"+self.ip,headers={"Host":randomString(10)+".com"},timeout=args.timeout)
+			normal = r
+		except requests.exceptions.Timeout:
+			print(f"{self.ip} ----->	not responding")
+			return
 
 		#Find valid virtual hosts.
 		for host in self.vh:
 			headers	= {"host" : host}
-			r = requests.get("http://"+self.ip,headers=headers)
+			r = requests.get("http://"+self.ip,headers=headers,timeout=args.timeout)
 			if r.text != normal.text:
 				valid.append({ip:host})
-				print(ip + " ----> " + host)
+				print(self.ip + " ----> " + host)
 
 
 if __name__ == "__main__":
@@ -71,3 +89,17 @@ if __name__ == "__main__":
 		bf.append(bruteforcer(ip,domains))
 	for i in bf:
 		i.bruteforce()
+
+	if args.o:
+		try:
+			if args.o[-1] == "/":
+				with open(args.o+"vhbuster.out",'rw') as f:
+					f.write(valid)
+					f.close()
+
+			else:
+				with open(args.o,'rw') as f:
+					f.write(valid)
+					f.close()
+		except:
+			print("Error:	Could not write to outfile.")
