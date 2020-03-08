@@ -11,7 +11,7 @@ Outfile:	{}
 
 def setup():
 	# Setup
-	global ips, domains, args, httpIps
+	global ips, domains, args, httpIps, output
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
 	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
@@ -45,9 +45,6 @@ def setup():
 		if args.http_only and args.https_only:
 			print("Error:	Can not run with both no-http and no-https.")
 			exit()
-		
-
-	
 
 	# Set up a list of domains.
 	try:
@@ -68,7 +65,7 @@ def setup():
 	if args.o:
 		if args.o[-1] == "/":
 			args.o+="vhbuster.out"
-
+	output=""
 	
 
 
@@ -84,15 +81,16 @@ class bruteforcer:
 		self.vh=vh
 
 	def bruteforce(self):
-		global valid
-		valid=[]
+		global output
+
 
 		#Find how server responds to non-exsistent requests.
 		try:
 			r= requests.get(self.ip,headers={"Host":randomString(10)+".com"},timeout=args.timeout)
 			normal = r
 		except:
-			print(f"{self.ip} ----->	not responding")
+			output+= f"{self.ip} ----> not responding\n"
+			print(f"{self.ip} ----> not responding")
 			return
 
 		#Find valid virtual hosts.
@@ -100,7 +98,7 @@ class bruteforcer:
 			headers	= {"host" : host}
 			r = requests.get(self.ip,headers=headers,timeout=args.timeout)
 			if r.text != normal.text:
-				valid.append({ip:host})
+				output+= self.ip + " ----> " + host+"\n"
 				print(self.ip + " ----> " + host)
 
 
@@ -112,11 +110,10 @@ if __name__ == "__main__":
 		bf.append(bruteforcer(ip,domains))
 	for i in bf:
 		i.bruteforce()
-
 	if args.o:
-		try:
+		# try:
 			with open(args.o,'w') as f:
-				f.write(str(valid))
+				f.write(output)
 				f.close()
-		except:
-			print("Error:	Could not write to outfile.")
+		# except:
+		# 	print("Error:	Could not write to outfile.")
