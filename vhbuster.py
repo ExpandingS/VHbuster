@@ -11,19 +11,21 @@ Outfile:	{}
 
 def setup():
 	# Setup
-	global ips, domains, args
+	global ips, domains, args, httpIps
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
 	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
 	parser.add_argument("-i",help="List of ip addresses, seperated by commas.",metavar="127.0.0.1")
 	parser.add_argument("domains",help="Location of file containing potential virtual hosts.")
 	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=10,type=int)
-	parser.add_argument("-l",help="Limit requests to one ip per minute.",metavar="5",type=int)
 	parser.add_argument("-o",help="Outfile",metavar="/path/to/outfile")
 	parser.add_argument("--timeout",help="Time in seconds to wait for a response.",default=5,type=int)
+	parser.add_argument("--http_only",help="Only send http requests.",action="store_true")
+	parser.add_argument("--https_only",help="Only send https requests.",action="store_true")
 	args = parser.parse_args()
 
-	ips=[] # Set up a list of ip addresses and virtual hosts.
+	# Set up a list of ip addresses and virtual hosts.
+	ips=[] 
 	if args.iL:
 		try:
 			with open(args.iL,"r") as f:
@@ -34,12 +36,27 @@ def setup():
 	if args.i:
 		ips += args.i.split(",")
 
+	httpIps = [] #add http codes
+	for ip in ips:
+		if not args.http_only:
+			httpIps.append("https://"+ip)
+		if not args.https_only:
+			httpIps.append("http://"+ip)
+		if args.http_only and args.https_only:
+			print("Error:	Can not run with both no-http and no-https.")
+			exit()
+		
+
+	
+
+	# Set up a list of domains.
 	try:
 		with open(args.domains,"r") as f:
 			domains = [line.rstrip() for line in f]
 	except:
-		print("Error: Could not open domain file.")\
+		print("Error: Could not open domain file.")
 
+	#Tests
 	if ips == []:
 		print("Error:	Ip address required.")
 		exit()
@@ -48,8 +65,11 @@ def setup():
 			print(f"Error:	{ip} is not a valid ip address.")
 			exit()
 
-	if args.o[-1] == "/":
-		args.o+="vhbuster.out"
+	if args.o:
+		if args.o[-1] == "/":
+			args.o+="vhbuster.out"
+
+	
 
 
 
@@ -67,19 +87,18 @@ class bruteforcer:
 		global valid
 		valid=[]
 
-
-		#Find how server responds to non-valid requests.
+		#Find how server responds to non-exsistent requests.
 		try:
-			r= requests.get("http://"+self.ip,headers={"Host":randomString(10)+".com"},timeout=args.timeout)
+			r= requests.get(self.ip,headers={"Host":randomString(10)+".com"},timeout=args.timeout)
 			normal = r
-		except requests.exceptions.Timeout:
+		except:
 			print(f"{self.ip} ----->	not responding")
 			return
 
 		#Find valid virtual hosts.
 		for host in self.vh:
 			headers	= {"host" : host}
-			r = requests.get("http://"+self.ip,headers=headers,timeout=args.timeout)
+			r = requests.get(self.ip,headers=headers,timeout=args.timeout)
 			if r.text != normal.text:
 				valid.append({ip:host})
 				print(self.ip + " ----> " + host)
@@ -89,7 +108,7 @@ if __name__ == "__main__":
 	setup()
 	print(banner.format(domains,ips,args.o))
 	bf =[]
-	for ip in ips:
+	for ip in httpIps:
 		bf.append(bruteforcer(ip,domains))
 	for i in bf:
 		i.bruteforce()
