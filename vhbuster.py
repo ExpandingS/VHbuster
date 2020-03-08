@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse, requests, json, random, string, re
-
+from multiprocessing import Pool	
 banner =\
 """VHbuster running.
 Host names:	{}
@@ -11,7 +11,7 @@ Outfile:	{}
 
 def setup():
 	# Setup
-	global ips, domains, args, httpIps
+	global domains, args, httpIps
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
 	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
@@ -45,9 +45,6 @@ def setup():
 		if args.http_only and args.https_only:
 			print("Error:	Can not run with both no-http and no-https.")
 			exit()
-		
-
-	
 
 	# Set up a list of domains.
 	try:
@@ -55,6 +52,7 @@ def setup():
 			domains = [line.rstrip() for line in f]
 	except:
 		print("Error: Could not open domain file.")
+
 
 	#Tests
 	if ips == []:
@@ -77,41 +75,37 @@ def randomString(Slen):
 	letters = string.ascii_lowercase
 	return ''.join(random.choice(letters) for i in range(Slen))
 
-#A bruteforce class for every ip.
-class bruteforcer:
-	def __init__(self,ip,vh): #accepts an ip address and a list of potential domain names.
-		self.ip=ip
-		self.vh=vh
-
-	def bruteforce(self):
-		global valid
-		valid=[]
-
-		#Find how server responds to non-exsistent requests.
+def cleanIps(normal_ips):
+	cleaned={}
+	for ip in normal_ips:
 		try:
-			r= requests.get(self.ip,headers={"Host":randomString(10)+".com"},timeout=args.timeout)
-			normal = r
+			r = requests.get(ip,timeout=args.timeout,headers={"Host":randomString(10)+".com"})
+			cleaned[ip] = r
 		except:
-			print(f"{self.ip} ----->	not responding")
-			return
+			print(f"{ip}	----->	not responding")
+	return cleaned
 
-		#Find valid virtual hosts.
-		for host in self.vh:
-			headers	= {"host" : host}
-			r = requests.get(self.ip,headers=headers,timeout=args.timeout)
-			if r.text != normal.text:
-				valid.append({ip:host})
-				print(self.ip + " ----> " + host)
+
+def bruteforce(domain,ip_dict):
+	global valid
+	valid=[]
+	for ip in ip_dict.keys():
+		r = requests.get(ip,headers={"Host":domain},timeout=10)
+
+		if (r.text + str(r.status_code)) != (ip_dict[ip].text + str(ip_dict[ip].status_code)):
+			valid.append([ip,domain])
+			print(f"{ip} ----> {domain}")
+
 
 
 if __name__ == "__main__":
 	setup()
-	print(banner.format(domains,ips,args.o))
-	bf =[]
-	for ip in httpIps:
-		bf.append(bruteforcer(ip,domains))
-	for i in bf:
-		i.bruteforce()
+	print(banner.format(domains,httpIps,args.o))
+	
+	CleanedIps = cleanIps(httpIps)
+	for domain in domains:
+		bruteforce(domain,CleanedIps)
+
 
 	if args.o:
 		try:
