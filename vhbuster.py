@@ -17,7 +17,7 @@ def setup():
 	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
 	parser.add_argument("-i",help="List of ip addresses, seperated by commas.",metavar="127.0.0.1")
 	parser.add_argument("domains",help="Location of file containing potential virtual hosts.")
-	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=10,type=int)
+	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=2,type=int)
 	parser.add_argument("-o",help="Outfile",metavar="/path/to/outfile")
 	parser.add_argument("--timeout",help="Time in seconds to wait for a response.",default=5,type=int)
 	parser.add_argument("--http_only",help="Only send http requests.",action="store_true")
@@ -86,31 +86,32 @@ def cleanIps(normal_ips):
 	return cleaned
 
 
-def bruteforce(domain,ip_dict):
-	global valid
-	valid=[]
-	for ip in ip_dict.keys():
+def bruteforce(domain):
+	global valid, CleanedIps
+	for ip in CleanedIps.keys():
 		r = requests.get(ip,headers={"Host":domain},timeout=10)
 
-		if (r.text + str(r.status_code)) != (ip_dict[ip].text + str(ip_dict[ip].status_code)):
+		if (r.text + str(r.status_code)) != (CleanedIps[ip].text + str(CleanedIps[ip].status_code)):
+			print(valid)
 			valid.append([ip,domain])
 			print(f"{ip} ----> {domain}")
-
 
 
 if __name__ == "__main__":
 	setup()
 	print(banner.format(domains,httpIps,args.o))
 	
+	#Run threads
+	valid=[]
 	CleanedIps = cleanIps(httpIps)
-	for domain in domains:
-		bruteforce(domain,CleanedIps)
+	p = Pool(args.t)
+	p.map(bruteforce,CleanedIps)
 
-
+	#Print output
 	if args.o:
-		try:
+		# try:
 			with open(args.o,'w') as f:
 				f.write(str(valid))
 				f.close()
-		except:
-			print("Error:	Could not write to outfile.")
+		# except:
+			# print("Error:	Could not write to outfile.")
