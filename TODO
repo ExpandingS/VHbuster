@@ -1,2 +1,3 @@
-* Make formatting nicer (sort/store output)
-*Implement threads (To seperate ip addresses at once, if possible.)
+*Make more versitile / flexable (e.g, ipv6, domains input from command line, etc)
+*Add colors to output.
+*Make code nicer (none of this spaghetti stuff)
