@@ -10,7 +10,7 @@ Outfile:	{}
 """
 
 def setup():
-	# Setup
+	########## Setup
 	global domains, args, httpIps, output
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
@@ -42,9 +42,7 @@ def setup():
 			httpIps.append("https://"+ip)
 		if not args.https_only:
 			httpIps.append("http://"+ip)
-		if args.http_only and args.https_only:
-			print("Error:	Can not run with both no-http and no-https.")
-			exit()
+	
 
 	# Set up a list of domains.
 	try:
@@ -54,7 +52,7 @@ def setup():
 		print("Error: Could not open domain file.")
 
 
-	#Tests
+	############## Tests
 	if ips == []:
 		print("Error:	Ip address required.")
 		exit()
@@ -62,20 +60,24 @@ def setup():
 		if not re.match('^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',ip): #Matches valid ipv4 addresses.
 			print(f"Error:	{ip} is not a valid ip address.")
 			exit()
-
+	#Add default file output, if a directory is specified.
 	if args.o:
 		if args.o[-1] == "/":
 			args.o+="vhbuster.out"
 	output=""
+
+	if args.http_only and args.https_only:
+		print("Error:	Can not run with both no-http and no-https.")
+		exit()
 	
 
 
 
-def randomString(Slen):
+def randomString(Slen): # Generate a random string of Slen length.
 	letters = string.ascii_lowercase
 	return ''.join(random.choice(letters) for i in range(Slen))
 
-def cleanIps(normal_ips):
+def cleanIps(normal_ips): #Check how an ip address responds to invalid host
 	global output
 	cleaned={}
 	for ip in normal_ips:
@@ -88,7 +90,7 @@ def cleanIps(normal_ips):
 	return cleaned
 
 
-def bruteforce(domain):
+def bruteforce(domain): #Check which ip addresses respond to this host.
 	global valid, CleanedIps
 	output = ""
 	for ip in CleanedIps.keys():
@@ -103,21 +105,25 @@ if __name__ == "__main__":
 	setup()
 	print(banner.format(domains,httpIps,args.o))
 	output+=banner.format(domains,httpIps,args.o)+"\n"
-	#Run threads
+
+	###### Start scan
 	valid=[]
 	CleanedIps = cleanIps(httpIps)
-	print(CleanedIps)
+	#Threads
 	p = Pool(args.t)
 	results = p.map(bruteforce,domains)
 	p.close()
 	p.join()
-	for item in results:
-		if item:
-			output+=item
+
+		
 	
-	#Write out output
+	#Save output
 	if args.o:
-		try:
+		for item in results: # Combind results
+			if item:
+				output+=item
+
+		try: # write to file
 			with open(args.o,'w') as f:
 				f.write(output)
 				f.close()

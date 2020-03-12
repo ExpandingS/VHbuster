@@ -1,3 +1,5 @@
 *Make more versitile / flexable (e.g, ipv6, domains input from command line, etc)
 *Add colors to output.
-*Make code nicer (none of this spaghetti stuff)
+*Update README
+*Thread cleaning
+*Account for reflected host header in response.
