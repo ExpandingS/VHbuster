@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse, requests, json, random, string, re
-
+from multiprocessing import Pool	
 banner =\
 """VHbuster running.
 Host names:	{}
@@ -11,13 +11,13 @@ Outfile:	{}
 
 def setup():
 	# Setup
-	global ips, domains, args, httpIps, output
+	global domains, args, httpIps, output
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
 	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
 	parser.add_argument("-i",help="List of ip addresses, seperated by commas.",metavar="127.0.0.1")
 	parser.add_argument("domains",help="Location of file containing potential virtual hosts.")
-	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=10,type=int)
+	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=2,type=int)
 	parser.add_argument("-o",help="Outfile",metavar="/path/to/outfile")
 	parser.add_argument("--timeout",help="Time in seconds to wait for a response.",default=5,type=int)
 	parser.add_argument("--http_only",help="Only send http requests.",action="store_true")
@@ -53,6 +53,7 @@ def setup():
 	except:
 		print("Error: Could not open domain file.")
 
+
 	#Tests
 	if ips == []:
 		print("Error:	Ip address required.")
@@ -74,46 +75,51 @@ def randomString(Slen):
 	letters = string.ascii_lowercase
 	return ''.join(random.choice(letters) for i in range(Slen))
 
-#A bruteforce class for every ip.
-class bruteforcer:
-	def __init__(self,ip,vh): #accepts an ip address and a list of potential domain names.
-		self.ip=ip
-		self.vh=vh
-
-	def bruteforce(self):
-		global output
-
-
-		#Find how server responds to non-exsistent requests.
+def cleanIps(normal_ips):
+	global output
+	cleaned={}
+	for ip in normal_ips:
 		try:
-			r= requests.get(self.ip,headers={"Host":randomString(10)+".com"},timeout=args.timeout)
-			normal = r
+			r = requests.get(ip,timeout=args.timeout,headers={"Host":randomString(10)+".com"})
+			cleaned[ip] = r
 		except:
-			output+= f"{self.ip} ----> not responding\n"
-			print(f"{self.ip} ----> not responding")
-			return
+			print(f"{ip}	----->	not responding")
+			output+= f"{ip} ----> not responding\n"
+	return cleaned
 
-		#Find valid virtual hosts.
-		for host in self.vh:
-			headers	= {"host" : host}
-			r = requests.get(self.ip,headers=headers,timeout=args.timeout)
-			if r.text != normal.text:
-				output+= self.ip + " ----> " + host+"\n"
-				print(self.ip + " ----> " + host)
 
+def bruteforce(domain):
+	global valid, CleanedIps
+	output = ""
+	for ip in CleanedIps.keys():
+		r = requests.get(ip,headers={"Host":domain},timeout=10)
+
+		if (r.text + str(r.status_code)) != (CleanedIps[ip].text + str(CleanedIps[ip].status_code)):
+			output+= ip + " ----> " + domain+"\n"
+			print(f"{ip} ----> {domain}")
+	return output
 
 if __name__ == "__main__":
 	setup()
-	print(banner.format(domains,ips,args.o))
-	bf =[]
-	for ip in httpIps:
-		bf.append(bruteforcer(ip,domains))
-	for i in bf:
-		i.bruteforce()
+	print(banner.format(domains,httpIps,args.o))
+	output+=banner.format(domains,httpIps,args.o)+"\n"
+	#Run threads
+	valid=[]
+	CleanedIps = cleanIps(httpIps)
+	print(CleanedIps)
+	p = Pool(args.t)
+	results = p.map(bruteforce,domains)
+	p.close()
+	p.join()
+	for item in results:
+		if item:
+			output+=item
+	
+	#Write out output
 	if args.o:
-		# try:
+		try:
 			with open(args.o,'w') as f:
 				f.write(output)
 				f.close()
-		# except:
-		# 	print("Error:	Could not write to outfile.")
+		except:
+			print("Error:	Could not write to outfile.")
