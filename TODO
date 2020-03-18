@@ -1,5 +1,4 @@
-*Make more versitile / flexable (e.g, ipv6, domains input from command line, etc)
+*Add ipv6
 *Add colors to output.
-*Update README
 *Thread cleaning
 *Account for reflected host header in response.

@@ -14,8 +14,7 @@ def setup():
 	global domains, args, httpIps, output
 	parser = argparse.ArgumentParser(description="Find virtual hosts on a list or single ip address.")
 
-	parser.add_argument("-iL",help="Location of file containing ip addresses.",metavar="/path/to/ip/file")
-	parser.add_argument("-i",help="List of ip addresses, seperated by commas.",metavar="127.0.0.1")
+	parser.add_argument("ips",help="List of ip addresses or ip files, seperated by commas.",metavar="127.0.0.1,ipfile.txt")
 	parser.add_argument("domains",help="Location of file containing potential virtual hosts.")
 	parser.add_argument("-t",help="Amount of threads to run at once.",metavar="5",default=2,type=int)
 	parser.add_argument("-o",help="Outfile",metavar="/path/to/outfile")
@@ -23,18 +22,19 @@ def setup():
 	parser.add_argument("--http_only",help="Only send http requests.",action="store_true")
 	parser.add_argument("--https_only",help="Only send https requests.",action="store_true")
 	args = parser.parse_args()
-
+	regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
 	# Set up a list of ip addresses and virtual hosts.
 	ips=[] 
-	if args.iL:
+	ipargs = args.ips.split(",")
+	for arg in ipargs:
 		try:
-			with open(args.iL,"r") as f:
-				ips = [line.rstrip() for line in f]
+			with open(arg,"r") as f:
+				ips.extend([line.rstrip() for line in f])
 		except:
-			print("Error:	Could not read ip file.")
-			exit()
-	if args.i:
-		ips += args.i.split(",")
+			if re.match(regex,arg):
+				ips.append(arg)
+			else:
+				print(f"Could not open {arg} or is not a valid ip address.")
 
 	httpIps = [] #add http codes
 	for ip in ips:
@@ -56,7 +56,7 @@ def setup():
 	if ips == []:
 		print("Error:	Ip address required.")
 		exit()
-	regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+	
 	for ip in ips:
 		if not re.match(regex,ip): #Matches valid ipv4 addresses.
 			print(f"Error:	{ip} is not a valid ip address.")
