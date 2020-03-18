@@ -56,8 +56,9 @@ def setup():
 	if ips == []:
 		print("Error:	Ip address required.")
 		exit()
+	regex = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
 	for ip in ips:
-		if not re.match('^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$',ip): #Matches valid ipv4 addresses.
+		if not re.match(regex,ip): #Matches valid ipv4 addresses.
 			print(f"Error:	{ip} is not a valid ip address.")
 			exit()
 	#Add default file output, if a directory is specified.
@@ -113,9 +114,7 @@ if __name__ == "__main__":
 	p = Pool(args.t)
 	results = p.map(bruteforce,domains)
 	p.close()
-	p.join()
-
-		
+	p.join()	
 	
 	#Save output
 	if args.o:
